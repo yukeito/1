@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cyber Strike: Blade vs Arcane</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  body, html { width: 100%; height: 100%; overflow: hidden; background: #05050a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #fff; }
+  
+  #game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+  }
+
+  canvas {
+    box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+    background: #111;
+  }
+
+  /* HUD Overlay */
+  #hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 15px 25px;
+  }
+
+  .hud-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .fighter-hud {
+    width: 40%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .fighter-hud.right {
+    align-items: flex-end;
+  }
+
+  .fighter-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .fighter-hud.right .fighter-info {
+    flex-direction: row-reverse;
+  }
+
+  .avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    border: 2px solid #fff;
+    background: #222;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgba(255,255,255,0.3);
+  }
+
+  .fighter-name {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8);
+  }
+
+  .bar-container {
+    width: 100%;
+    height: 22px;
+    background: rgba(20, 20, 30, 0.85);
+    border: 2px solid #444;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 5px #000;
+  }
+
+  .bar-fill {
+    height: 100%;
+    width: 100%;
+    transition: width 0.15s ease-out;
+  }
+
+  .hp-player { background: linear-gradient(90deg, #ff3366, #ff6600); }
+  .hp-enemy { background: linear-gradient(90deg, #9900ff, #cc00ff); }
+  .stamina-bar { background: linear-gradient(90deg, #00ccff, #00ff66); height: 12px; }
+  .mp-bar { background: linear-gradient(90deg, #3366ff, #00ffff); height: 12px; }
+
+  .bar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 11px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+  }
+
+  .timer-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0,0,0,0.6);
+    padding: 8px 18px;
+    border: 2px solid #ffcc00;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(255,204,0,0.4);
+  }
+
+  .timer-num {
+    font-size: 36px;
+    font-weight: 900;
+    color: #ffcc00;
+    text-shadow: 0 0 10px #ff9900;
+  }
+
+  .round-text {
+    font-size: 12px;
+    color: #aaa;
+    letter-spacing: 2px;
+  }
+
+  /* Touch / On-screen Controls */
+  #controls {
+    pointer-events: auto;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 10px;
+  }
+
+  .dpad, .action-btns {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.4);
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+
+  .btn:active, .btn.active {
+    background: rgba(0, 240, 255, 0.5);
+    transform: scale(0.92);
+  }
+
+  /* UI Screens Overlay */
+  .screen-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10, 10, 20, 0.92);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+
+  .title {
+    font-size: 52px;
+    font-weight: 900;
+    font-style: italic;
+    background: linear-gradient(45deg, #00f0ff, #ff0077);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 30px rgba(0,240,255,0.5);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-size: 18px;
+    color: #aaa;
+    margin-bottom: 30px;
+    letter-spacing: 4px;
+  }
+
+  .menu-btn {
+    width: 220px;
+    padding: 14px;
+    margin: 8px;
+    background: linear-gradient(90deg, #00c6ff, #0072ff);
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(0,114,255,0.4);
+    transition: all 0.2s;
+  }
+
+  .menu-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 0 25px rgba(0,114,255,0.8);
+  }
+
+  .difficulty-selector {
+    display: flex;
+    gap: 15px;
+    margin: 20px 0;
+  }
+
+  .diff-btn {
+    padding: 10px 20px;
+    border: 2px solid #444;
+    background: #151525;
+    color: #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+  }
+
+  .diff-btn.active {
+    border-color: #00f0ff;
+    color: #00f0ff;
+    box-shadow: 0 0 10px rgba(0,240,255,0.4);
+    background: #202040;
+  }
+
+  .instructions {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 15px 25px;
+    border-radius: 10px;
+    margin-top: 25px;
+    max-width: 550px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #bbb;
+  }
+
+  .volume-ctrl {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+  <div class="volume-ctrl">
+    <span style="font-size: 12px; color: #888;">🔊 音量</span>
+    <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" style="cursor:pointer;">
+  </div>
+
+  <!-- HUD Layer (100% First Edition Layout) -->
+  <div id="hud">
+    <div class="hud-top">
+      <!-- Player HUD -->
+      <div class="fighter-hud">
+        <div class="fighter-info">
+          <canvas id="avatar-player" class="avatar" width="50" height="50"></canvas>
+          <div>
+            <div class="fighter-name" style="color: #00f0ff;">雷恩 (BLADE)</div>
+            <div style="font-size: 11px; color: #aaa;">近戰物理型</div>
+          </div>
+        </div>
+        <div class="bar-container">
+          <div id="player-hp" class="bar-fill hp-player"></div>
+          <div id="player-hp-text" class="bar-text">HP: 100 / 100</div>
+        </div>
+        <div class="bar-container" style="height: 12px;">
+          <div id="player-stamina" class="bar-fill stamina-bar"></div>
+          <div id="player-stamina-text" class="bar-text" style="font-size: 9px;">STAMINA: 100</div>
+        </div>
+      </div>
+
+      <!-- Timer & Round -->
+      <div class="timer-box">
+        <div class="round-text">ROUND 1</div>
+        <div id="timer" class="timer-num">60</div>
+      </div>
+
+      <!-- Enemy HUD -->
+      <div class="fighter-hud right">
+        <div class="fighter-info">
+          <canvas id="avatar-enemy" class="avatar" width="50" height="50"></canvas>
+          <div style="text-align: right;">
+            <div class="fighter-name" style="color: #ff0077;">賽琳娜 (ARCANE)</div>
+            <div style="font-size: 11px; color: #aaa;">遠程魔法型</div>
+          </div>
+        </div>
+        <div class="bar-container">
+          <div id="enemy-hp" class="bar-fill hp-enemy"></div>
+          <div id="enemy-hp-text" class="bar-text">HP: 100 / 100</div>
+        </div>
+        <div class="bar-container" style="height: 12px;">
+          <div id="enemy-mp" class="bar-fill mp-bar"></div>
+          <div id="enemy-mp-text" class="bar-text" style="font-size: 9px;">MP: 100</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Touch / Screen Controls (Original First Edition Layout) -->
+    <div id="controls">
+      <div class="dpad">
+        <div class="btn" id="btn-left">←</div>
+        <div class="btn" id="btn-right">→</div>
+        <div class="btn" id="btn-up">↑</div>
+        <div class="btn" id="btn-down">↓</div>
+      </div>
+      <div class="action-btns">
+        <div class="btn" id="btn-atk">J<br><span style="font-size:9px;">普攻</span></div>
+        <div class="btn" id="btn-combo">K<br><span style="font-size:9px;">連擊</span></div>
+        <div class="btn" id="btn-skill">L<br><span style="font-size:9px;">特技</span></div>
+        <div class="btn" id="btn-dash">DASH<br><span style="font-size:9px;">閃避</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start / Main Menu Screen -->
+  <div id="menu-screen" class="screen-overlay">
+    <div class="title">CYBER STRIKE</div>
+    <div class="subtitle">BLADE VS ARCANE</div>
+
+    <div style="margin-bottom: 10px; font-weight: bold; color: #888;">選擇對戰難度</div>
+    <div class="difficulty-selector">
+      <div class="diff-btn" onclick="setDifficulty('easy')">簡單 (Easy)</div>
+      <div class="diff-btn active" onclick="setDifficulty('normal')">普通 (Normal)</div>
+      <div class="diff-btn" onclick="setDifficulty('hard')">困難 (Hard)</div>
+    </div>
+
+    <button class="menu-btn" onclick="startGame()">開始對戰</button>
+
+    <div class="instructions">
+      <strong>【標準 PC 格鬥遊戲鍵盤操作指南】</strong><br>
+      移動：<strong>A / D</strong> 或 <strong>← / →</strong> (向左/向右移動)<br>
+      跳躍：<strong>W</strong> 或 <strong>↑</strong> | 防禦：<strong>S</strong> 或 <strong>↓</strong> (按住持續防禦)<br>
+      攻擊：<strong>J</strong> (普通攻擊) | <strong>K</strong> (連續斬擊) | <strong>L</strong> (特殊技能 - 破空斬)<br>
+      閃避：<strong>Space (空白鍵)</strong> 或 <strong>Shift</strong> | 暫停：<strong>ESC</strong><br>
+      <span style="color:#00f0ff;">提示：支援多鍵同時操作（如邊走邊攻擊、連招組合）。</span>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameover-screen" class="screen-overlay" style="display: none;">
+    <div id="result-title" class="title" style="font-size: 64px;">VICTORY!</div>
+    <div id="result-desc" class="subtitle">你成功擊敗了遠程導師賽琳娜！</div>
+
+    <button class="menu-btn" onclick="startGame()">再次挑戰</button>
+    <button class="menu-btn" style="background: #333;" onclick="showMenu()">返回主選單</button>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   AUDIO SYNTHESIZER (Web Audio API - Direct Procedural Sounds)
+   ========================================================================== */
+class SoundFx {
+  constructor() {
+    this.ctx = null;
+    this.volume = 0.5;
+  }
+
+  init() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  playTone(freq, type, duration, startVol = 0.3, endVol = 0) {
+    if (!this.ctx) return;
+    try {
+      let osc = this.ctx.createOscillator();
+      let gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(startVol * this.volume, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(Math.max(endVol, 0.0001), this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch(e){}
+  }
+
+  playNoise(duration, startVol = 0.3) {
+    if (!this.ctx) return;
+    try {
+      let bufferSize = this.ctx.sampleRate * duration;
+      let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      let data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      let noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      let gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(startVol * this.volume, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      noise.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start();
+    } catch(e){}
+  }
+
+  start() { this.init(); this.playTone(440, 'sine', 0.2, 0.2); }
+  btn() { this.init(); this.playTone(600, 'square', 0.05, 0.1); }
+  swordSwing() { this.init(); this.playTone(300, 'triangle', 0.1, 0.2); this.playNoise(0.08, 0.15); }
+  hitPhysical() { this.init(); this.playTone(120, 'sawtooth', 0.15, 0.4); this.playNoise(0.12, 0.3); }
+  magicCast() { this.init(); this.playTone(800, 'sine', 0.25, 0.25); this.playTone(1200, 'sine', 0.2, 0.2); }
+  magicHit() { this.init(); this.playTone(200, 'square', 0.2, 0.3); this.playNoise(0.2, 0.3); }
+  dash() { this.init(); this.playNoise(0.15, 0.2); }
+  hurt() { this.init(); this.playTone(150, 'sawtooth', 0.15, 0.3); }
+  win() { 
+    this.init(); 
+    [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.playTone(f, 'sine', 0.3, 0.3), i * 120));
+  }
+  lose() {
+    this.init();
+    [300, 260, 220, 180].forEach((f, i) => setTimeout(() => this.playTone(f, 'sawtooth', 0.3, 0.3), i * 150));
+  }
+}
+
+const sfx = new SoundFx();
+document.getElementById('volumeSlider').addEventListener('input', (e) => {
+  sfx.volume = parseFloat(e.target.value);
+});
+
+/* ==========================================================================
+   GAME ENGINE & CONFIG
+   ========================================================================== */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let difficulty = 'normal';
+let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
+let gameTimer = 60;
+let timerInterval = null;
+
+const diffConfigs = {
+  easy: {
+    pMaxHp: 120, pMaxStamina: 120, pStamRegen: 0.45,
+    eMaxHp: 80, eMaxMp: 80, eMpRegen: 0.15, eAtkFreq: 0.015, eDamageMult: 0.7
+  },
+  normal: {
+    pMaxHp: 100, pMaxStamina: 100, pStamRegen: 0.3,
+    eMaxHp: 100, eMaxMp: 100, eMpRegen: 0.25, eAtkFreq: 0.03, eDamageMult: 1.0
+  },
+  hard: {
+    pMaxHp: 90, pMaxStamina: 90, pStamRegen: 0.2,
+    eMaxHp: 130, eMaxMp: 130, eMpRegen: 0.4, eAtkFreq: 0.05, eDamageMult: 1.3
+  }
+};
+
+function setDifficulty(diff) {
+  difficulty = diff;
+  document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  sfx.btn();
+}
+
+/* ==========================================================================
+   GAME OBJECTS & PARTICLES
+   ========================================================================== */
+let particles = [];
+let projectiles = [];
+
+class Particle {
+  constructor(x, y, vx, vy, color, size, life) {
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.color = color; this.size = size; this.life = life; this.maxLife = life;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life--;
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function createHitSparks(x, y, color = '#ffcc00', count = 12) {
+  for (let i = 0; i < count; i++) {
+    let ang = Math.random() * Math.PI * 2;
+    let spd = 2 + Math.random() * 6;
+    particles.push(new Particle(x, y, Math.cos(ang)*spd, Math.sin(ang)*spd, color, 2 + Math.random()*3, 15 + Math.random()*10));
+  }
+}
+
+class Projectile {
+  constructor(x, y, vx, vy, damage, isSpecial) {
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.damage = damage; this.isSpecial = isSpecial;
+    this.radius = isSpecial ? 16 : 9;
+    this.active = true;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    particles.push(new Particle(this.x, this.y, (Math.random()-0.5)*2, (Math.random()-0.5)*2, this.isSpecial ? '#cc00ff' : '#00ffff', 3, 10));
+    if (this.x < -50 || this.x > canvas.width + 50) this.active = false;
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = this.isSpecial ? '#cc00ff' : '#00ffff';
+    ctx.fillStyle = this.isSpecial ? '#ff66ff' : '#ffffff';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ==========================================================================
+   CHARACTERS (Player: Blade / Enemy: Arcane)
+   ========================================================================== */
+class Fighter {
+  constructor(x, color, name, isEnemy = false) {
+    this.x = x;
+    this.y = 400;
+    this.width = 40;
+    this.height = 80;
+    this.vx = 0;
+    this.vy = 0;
+    this.color = color;
+    this.name = name;
+    this.isEnemy = isEnemy;
+    this.facingLeft = isEnemy;
+
+    this.hp = 100; this.maxHp = 100;
+    this.stamina = 100; this.maxStamina = 100;
+    this.mp = 100; this.maxMp = 100;
+
+    this.isGrounded = true;
+    this.isBlocking = false;
+    this.isDashing = false;
+    this.dashTimer = 0;
+    this.state = 'IDLE'; // IDLE, ATTACK, HURT, DEAD
+    this.stateTimer = 0;
+  }
+
+  reset(cfg) {
+    this.y = 400;
+    this.vx = 0; this.vy = 0;
+    this.state = 'IDLE';
+    this.stateTimer = 0;
+    this.isBlocking = false;
+    this.isDashing = false;
+
+    if (!this.isEnemy) {
+      this.hp = this.maxHp = cfg.pMaxHp;
+      this.stamina = this.maxStamina = cfg.pMaxStamina;
+    } else {
+      this.hp = this.maxHp = cfg.eMaxHp;
+      this.mp = this.maxMp = cfg.eMaxMp;
+    }
+  }
+
+  update(cfg) {
+    // Gravity
+    this.vy += 0.8;
+    this.x += this.vx;
+    this.y += this.vy;
+
+    if (this.y >= 400) {
+      this.y = 400;
+      this.vy = 0;
+      this.isGrounded = true;
+    }
+
+    // Boundaries
+    if (this.x < 30) this.x = 30;
+    if (this.x > canvas.width - 30) this.x = canvas.width - 30;
+
+    // Regeneration
+    if (!this.isEnemy) {
+      this.stamina = Math.min(this.maxStamina, this.stamina + cfg.pStamRegen);
+    } else {
+      this.mp = Math.min(this.maxMp, this.mp + cfg.eMpRegen);
+    }
+
+    // State Timer
+    if (this.stateTimer > 0) {
+      this.stateTimer--;
+      if (this.stateTimer <= 0 && this.state !== 'DEAD') {
+        this.state = 'IDLE';
+      }
+    }
+
+    if (this.dashTimer > 0) this.dashTimer--;
+  }
+
+  takeDamage(amount) {
+    if (this.state === 'DEAD') return;
+
+    if (this.isBlocking) {
+      amount *= 0.25; // Block reduces 75% dmg
+      sfx.hitPhysical();
+    } else {
+      sfx.hurt();
+    }
+
+    this.hp -= amount;
+    createHitSparks(this.x, this.y - 40, this.isEnemy ? '#cc00ff' : '#00ffff', 15);
+
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.state = 'DEAD';
+      sfx.lose();
+    } else if (!this.isBlocking) {
+      this.state = 'HURT';
+      this.stateTimer = 12;
+    }
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+
+    // Direction flip
+    if (this.facingLeft) ctx.scale(-1, 1);
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 25, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body Tint & Hurt flashes
+    let fillStyle = this.color;
+    if (this.state === 'HURT') fillStyle = '#ffffff';
+    if (this.isBlocking) fillStyle = '#4488ff';
+
+    // Draw Character Body Visuals
+    ctx.fillStyle = fillStyle;
+    
+    if (!this.isEnemy) {
+      // PLAYER: MELEE WARRIOR (BLADE)
+      // Legs
+      ctx.fillRect(-12, -30, 8, 30);
+      ctx.fillRect(4, -30, 8, 30);
+      // Torso
+      ctx.fillRect(-15, -60, 30, 32);
+      // Head
+      ctx.fillStyle = '#ffcc99';
+      ctx.fillRect(-10, -78, 20, 18);
+      // Helmet / Hair
+      ctx.fillStyle = '#00f0ff';
+      ctx.fillRect(-12, -84, 24, 8);
+
+      // Sword / Weapon Attack Visuals
+      if (this.state === 'ATTACK') {
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(10, -40, 45, -Math.PI*0.4, Math.PI*0.4);
+        ctx.stroke();
+      }
+    } else {
+      // ENEMY: MAGE (ARCANE)
+      // Robe Body
+      ctx.beginPath();
+      ctx.moveTo(0, -75);
+      ctx.lineTo(-18, 0);
+      ctx.lineTo(18, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Head
+      ctx.fillStyle = '#ffcc99';
+      ctx.beginPath();
+      ctx.arc(0, -68, 10, 0, Math.PI*2);
+      ctx.fill();
+      // Mage Hat
+      ctx.fillStyle = '#9900ff';
+      ctx.beginPath();
+      ctx.moveTo(-16, -72);
+      ctx.lineTo(16, -72);
+      ctx.lineTo(0, -95);
+      ctx.closePath();
+      ctx.fill();
+
+      // Magic Aura
+      if (this.state === 'ATTACK') {
+        ctx.fillStyle = '#ff00ff';
+        ctx.beginPath();
+        ctx.arc(25, -45, 12, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+}
+
+/* Setup Characters */
+const player = new Fighter(200, '#00c6ff', 'Blade', false);
+const enemy = new Fighter(760, '#ff0077', 'Arcane', true);
+
+/* Draw Avatars on Canvas */
+function drawAvatars() {
+  const pCtx = document.getElementById('avatar-player').getContext('2d');
+  pCtx.fillStyle = '#111'; pCtx.fillRect(0,0,50,50);
+  pCtx.fillStyle = '#00f0ff'; pCtx.fillRect(10,10,30,30);
+
+  const eCtx = document.getElementById('avatar-enemy').getContext('2d');
+  eCtx.fillStyle = '#111'; eCtx.fillRect(0,0,50,50);
+  eCtx.fillStyle = '#ff0077'; eCtx.beginPath(); eCtx.arc(25,25,15,0,Math.PI*2); eCtx.fill();
+}
+drawAvatars();
+
+/* ==========================================================================
+   STANDARD PC FIGHTING GAME KEYBOARD CONTROLS (MULTIPLE KEY SUPPORT)
+   ========================================================================== */
+const keys = {};
+
+// Key code mapping for standard PC fighting games:
+// Supports both WASD and ARROW KEYS for movement/jump/guard
+// Actions: J = Attack, K = Combo, L = Special, Space/Shift = Dash
+const gameKeyCodes = [
+  'KeyA', 'KeyD', 'KeyW', 'KeyS',
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+  'KeyJ', 'KeyK', 'KeyL',
+  'Space', 'ShiftLeft', 'ShiftRight',
+  'Escape'
+];
+
+window.addEventListener('keydown', (e) => {
+  if (gameKeyCodes.includes(e.code)) {
+    e.preventDefault();
+  }
+
+  // Key state tracking for simultaneous inputs
+  if (!keys[e.code]) {
+    keys[e.code] = true;
+
+    if (gameState === 'PLAYING') {
+      handleKeyPress(e.code);
+    }
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (gameKeyCodes.includes(e.code)) {
+    e.preventDefault();
+  }
+  keys[e.code] = false;
+});
+
+// Clear key states on window blur to prevent stuck keys
+window.addEventListener('blur', () => {
+  for (let k in keys) keys[k] = false;
+});
+
+// Touch / On-screen Button Binds (Mirrors same key codes for full compatibility)
+function bindBtn(id, code) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const pressHandler = (e) => {
+    e.preventDefault();
+    if (!keys[code]) {
+      keys[code] = true;
+      el.classList.add('active');
+      if (gameState === 'PLAYING') handleKeyPress(code);
+    }
+  };
+
+  const releaseHandler = (e) => {
+    e.preventDefault();
+    keys[code] = false;
+    el.classList.remove('active');
+  };
+
+  el.addEventListener('touchstart', pressHandler);
+  el.addEventListener('touchend', releaseHandler);
+  el.addEventListener('mousedown', pressHandler);
+  el.addEventListener('mouseup', releaseHandler);
+  el.addEventListener('mouseleave', releaseHandler);
+}
+
+bindBtn('btn-left', 'KeyA');
+bindBtn('btn-right', 'KeyD');
+bindBtn('btn-up', 'KeyW');
+bindBtn('btn-down', 'KeyS');
+bindBtn('btn-atk', 'KeyJ');
+bindBtn('btn-combo', 'KeyK');
+bindBtn('btn-skill', 'KeyL');
+bindBtn('btn-dash', 'Space');
+
+function handleKeyPress(code) {
+  if (player.state === 'HURT' || player.state === 'DEAD') return;
+
+  // Jump: W or ArrowUp
+  if ((code === 'KeyW' || code === 'ArrowUp') && player.isGrounded) {
+    player.vy = -14;
+    player.isGrounded = false;
+    return;
+  }
+
+  // Dash / Dodge: Space or Shift
+  if ((code === 'Space' || code === 'ShiftLeft' || code === 'ShiftRight') && player.stamina >= 15 && player.dashTimer === 0) {
+    player.stamina -= 15;
+    player.vx = player.facingLeft ? -13 : 13;
+    player.dashTimer = 18;
+    sfx.dash();
+    return;
+  }
+
+  // Normal Attack: J (10 Stamina)
+  if (code === 'KeyJ' && player.stamina >= 10 && player.state === 'IDLE') {
+    player.stamina -= 10;
+    player.state = 'ATTACK';
+    player.stateTimer = 15;
+    sfx.swordSwing();
+    checkMeleeHit(player, enemy, 12, 60);
+    return;
+  }
+
+  // Combo Attack: K (25 Stamina)
+  if (code === 'KeyK' && player.stamina >= 25 && player.state === 'IDLE') {
+    player.stamina -= 25;
+    player.state = 'ATTACK';
+    player.stateTimer = 22;
+    sfx.swordSwing();
+    setTimeout(() => { if (player.state === 'ATTACK') sfx.swordSwing(); }, 100);
+    checkMeleeHit(player, enemy, 22, 70);
+    return;
+  }
+
+  // Special Skill: L (40 Stamina)
+  if (code === 'KeyL' && player.stamina >= 40 && player.state === 'IDLE') {
+    player.stamina -= 40;
+    player.state = 'ATTACK';
+    player.stateTimer = 30;
+    sfx.swordSwing();
+    checkMeleeHit(player, enemy, 35, 90);
+    createHitSparks(player.x + (player.facingLeft ? -40 : 40), player.y - 40, '#00f0ff', 25);
+    return;
+  }
+}
+
+function checkMeleeHit(attacker, defender, damage, range) {
+  let dist = Math.abs(attacker.x - defender.x);
+  let isFacing = (attacker.x < defender.x && !attacker.facingLeft) || (attacker.x > defender.x && attacker.facingLeft);
+  
+  if (dist <= range && isFacing && Math.abs(attacker.y - defender.y) < 40) {
+    setTimeout(() => {
+      defender.takeDamage(damage);
+    }, 100);
+  }
+}
+
+/* ==========================================================================
+   ENEMY AI LOGIC
+   ========================================================================== */
+function updateEnemyAI() {
+  if (enemy.state === 'HURT' || enemy.state === 'DEAD' || gameState !== 'PLAYING') return;
+
+  const cfg = diffConfigs[difficulty];
+  let dist = Math.abs(enemy.x - player.x);
+  enemy.facingLeft = enemy.x > player.x;
+
+  // Movement & Keeping Distance
+  if (dist < 180) {
+    enemy.vx = enemy.facingLeft ? 2.5 : -2.5; // Back off
+  } else if (dist > 400) {
+    enemy.vx = enemy.facingLeft ? -2.5 : 2.5; // Close in
+  } else {
+    enemy.vx = 0;
+  }
+
+  // AI Attack Decisions
+  if (Math.random() < cfg.eAtkFreq && enemy.state === 'IDLE') {
+    let rand = Math.random();
+
+    // Normal Magic Ball (15 MP)
+    if (rand < 0.6 && enemy.mp >= 15) {
+      enemy.mp -= 15;
+      enemy.state = 'ATTACK';
+      enemy.stateTimer = 20;
+      sfx.magicCast();
+      let dir = enemy.facingLeft ? -1 : 1;
+      projectiles.push(new Projectile(enemy.x + dir*20, enemy.y - 50, dir * 7, 0, 10 * cfg.eDamageMult, false));
+    } 
+    // Special Arcane Burst (35 MP)
+    else if (enemy.mp >= 35) {
+      enemy.mp -= 35;
+      enemy.state = 'ATTACK';
+      enemy.stateTimer = 30;
+      sfx.magicCast();
+      let dir = enemy.facingLeft ? -1 : 1;
+      projectiles.push(new Projectile(enemy.x + dir*20, enemy.y - 50, dir * 10, 0, 24 * cfg.eDamageMult, true));
+    }
+  }
+
+  // Hard AI: Auto Defensive Guarding
+  if (difficulty === 'hard' && player.state === 'ATTACK' && dist < 80) {
+    enemy.isBlocking = Math.random() < 0.7;
+  } else {
+    enemy.isBlocking = false;
+  }
+}
+
+/* ==========================================================================
+   GAME LOOP & RENDERING
+   ========================================================================== */
+function update() {
+  if (gameState !== 'PLAYING') return;
+
+  const cfg = diffConfigs[difficulty];
+
+  // Guarding / Blocking (S or Down Arrow)
+  player.isBlocking = !!(keys['KeyS'] || keys['ArrowDown']);
+
+  // Movement (A/D or Left/Right Arrow)
+  if (!player.isBlocking && player.dashTimer === 0) {
+    if (keys['KeyA'] || keys['ArrowLeft']) { 
+      player.vx = -4.5; 
+      player.facingLeft = true; 
+    } else if (keys['KeyD'] || keys['ArrowRight']) { 
+      player.vx = 4.5; 
+      player.facingLeft = false; 
+    } else { 
+      player.vx = 0; 
+    }
+  } else if (player.dashTimer === 0) {
+    player.vx = 0;
+  }
+
+  // Update Entities
+  player.update(cfg);
+  enemy.update(cfg);
+  updateEnemyAI();
+
+  // Update Projectiles & Hit Tests
+  projectiles.forEach((p, idx) => {
+    p.update();
+    // Hit Player test
+    if (Math.abs(p.x - player.x) < 25 && Math.abs(p.y - (player.y - 40)) < 40) {
+      player.takeDamage(p.damage);
+      sfx.magicHit();
+      createHitSparks(p.x, p.y, '#ff00ff', 12);
+      p.active = false;
+    }
+  });
+  projectiles = projectiles.filter(p => p.active);
+
+  // Update Particles
+  particles.forEach(p => p.update());
+  particles = particles.filter(p => p.life > 0);
+
+  // HUD Bar Updates
+  document.getElementById('player-hp').style.width = Math.max(0, (player.hp / player.maxHp * 100)) + '%';
+  document.getElementById('player-hp-text').innerText = `HP: ${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp}`;
+  document.getElementById('player-stamina').style.width = (player.stamina / player.maxStamina * 100) + '%';
+  document.getElementById('player-stamina-text').innerText = `STAMINA: ${Math.ceil(player.stamina)}`;
+
+  document.getElementById('enemy-hp').style.width = Math.max(0, (enemy.hp / enemy.maxHp * 100)) + '%';
+  document.getElementById('enemy-hp-text').innerText = `HP: ${Math.max(0, Math.ceil(enemy.hp))} / ${enemy.maxHp}`;
+  document.getElementById('enemy-mp').style.width = (enemy.mp / enemy.maxMp * 100) + '%';
+  document.getElementById('enemy-mp-text').innerText = `MP: ${Math.ceil(enemy.mp)}`;
+
+  // Victory / Defeat Condition
+  if (player.hp <= 0 || enemy.hp <= 0) {
+    endGame(player.hp > 0 ? 'WIN' : 'LOSE');
+  }
+}
+
+function drawBackground() {
+  // Arena Sky gradient
+  let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, '#0a0a16');
+  grad.addColorStop(1, '#1a1a3a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Background Grid / Pillars
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+  ctx.lineWidth = 2;
+  for (let x = 0; x < canvas.width; x += 60) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 400); ctx.stroke();
+  }
+
+  // Stage Floor
+  ctx.fillStyle = '#151525';
+  ctx.fillRect(0, 400, canvas.width, 140);
+
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, 400);
+  ctx.lineTo(canvas.width, 400);
+  ctx.stroke();
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
+
+  // Render Entities
+  player.draw(ctx);
+  enemy.draw(ctx);
+  projectiles.forEach(p => p.draw(ctx));
+  particles.forEach(p => p.draw(ctx));
+
+  requestAnimationFrame(() => {
+    update();
+    render();
+  });
+}
+
+/* ==========================================================================
+   FLOW & SCREEN MANAGEMENT
+   ========================================================================== */
+function startGame() {
+  sfx.start();
+  const cfg = diffConfigs[difficulty];
+
+  player.reset(cfg);
+  enemy.reset(cfg);
+  particles = [];
+  projectiles = [];
+
+  // Reset keys state
+  for (let k in keys) keys[k] = false;
+
+  gameTimer = 60;
+  document.getElementById('timer').innerText = gameTimer;
+
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (gameState === 'PLAYING') {
+      gameTimer--;
+      document.getElementById('timer').innerText = gameTimer;
+      if (gameTimer <= 0) {
+        endGame(player.hp >= enemy.hp ? 'WIN' : 'LOSE');
+      }
+    }
+  }, 1000);
+
+  document.getElementById('menu-screen').style.display = 'none';
+  document.getElementById('gameover-screen').style.display = 'none';
+  gameState = 'PLAYING';
+}
+
+function showMenu() {
+  sfx.btn();
+  for (let k in keys) keys[k] = false;
+  document.getElementById('menu-screen').style.display = 'flex';
+  document.getElementById('gameover-screen').style.display = 'none';
+  gameState = 'MENU';
+}
+
+function endGame(result) {
+  gameState = 'GAMEOVER';
+  for (let k in keys) keys[k] = false;
+  if (timerInterval) clearInterval(timerInterval);
+
+  const title = document.getElementById('result-title');
+  const desc = document.getElementById('result-desc');
+
+  if (result === 'WIN') {
+    title.innerText = 'VICTORY!';
+    title.style.background = 'linear-gradient(45deg, #00f0ff, #00ff66)';
+    title.style.webkitBackgroundClip = 'text';
+    desc.innerText = '完美勝利！你成功擊敗了遠程導師賽琳娜！';
+    sfx.win();
+  } else {
+    title.innerText = 'DEFEAT...';
+    title.style.background = 'linear-gradient(45deg, #ff0055, #ff6600)';
+    title.style.webkitBackgroundClip = 'text';
+    desc.innerText = '戰鬥失敗，敵人的魔法壓制了你的刀刃。';
+    sfx.lose();
+  }
+
+  setTimeout(() => {
+    document.getElementById('gameover-screen').style.display = 'flex';
+  }, 1000);
+}
+
+// Start Render Engine
+render();
+</script>
+</body>
+</html>
